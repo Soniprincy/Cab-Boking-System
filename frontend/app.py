@@ -1,5 +1,6 @@
 import streamlit as st
 from sqlalchemy import create_engine, text
+import pandas as pd
 
 # -------------------------
 # Database connection
@@ -18,9 +19,26 @@ engine = create_engine(connection_string)
 st.title("🚖 Cab Booking System")
 
 # -------------------------
-# User form
+# Show cab pricing details
+# -------------------------
+st.subheader("💰 Fare Pricing Details")
+st.markdown("""
+- **Base Charge:** ₹50  
+- **Cab Rates per km:**  
+  - 🚗 Standard Cab → ₹15/km  
+  - 🚙 Galaxy Cab → ₹20/km  
+  - 🚘 Mondeo Cab → ₹22/km  
+- **Travelling Insurance:** ₹10  
+- **Extra Luggage:** Custom (₹10/kg)  
+- **Tax:** 9% on subtotal  
+""")
+
+# -------------------------
+# Booking form
 # -------------------------
 with st.form("booking_form"):
+    st.subheader("📋 Enter Customer & Trip Details")
+
     firstname = st.text_input("First Name")
     surname = st.text_input("Surname")
     address = st.text_input("Address")
@@ -43,16 +61,19 @@ with st.form("booking_form"):
 # -------------------------
 if submitted:
     try:
-        # Cab rates
+        # Pricing details
         cab_rates = {"Standard": 15, "Galaxy": 20, "Mondeo": 22}
         base_charge = 50
         insurance = 10.0
+        tax_rate = 0.09
 
+        # Fare calculation
         rate = cab_rates.get(cab_type, 15)
         subtotal = base_charge + (distance * rate) + extra_luggage + insurance
-        tax = subtotal * 0.09
+        tax = subtotal * tax_rate
         total = subtotal + tax
 
+        # Insert into database
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO Bookings (
@@ -84,12 +105,27 @@ if submitted:
                 "total_cost": total,
             })
 
-        st.success(
-            f"✅ Cab booked!\n\n"
-            f"Subtotal: ₹{subtotal:.2f}\n"
-            f"Tax: ₹{tax:.2f}\n"
-            f"Total Fare: ₹{total:.2f}"
-        )
+        st.success("✅ Cab booked successfully!")
+
+        # -------------------------
+        # Show receipt table
+        # -------------------------
+        receipt_data = {
+            "Field": [
+                "Firstname", "Surname", "Address", "Postcode", "Telephone", "Mobile", "Email",
+                "Pickup", "Drop", "Pooling", "Cab Type", "Distance (km)",
+                "Extra Luggage", "Insurance", "Subtotal", "Tax (9%)", "Total Fare"
+            ],
+            "Value": [
+                firstname, surname, address, postcode, telephone, mobile, email,
+                pickup, drop, pooling, cab_type, distance,
+                extra_luggage, insurance, f"₹{subtotal:.2f}", f"₹{tax:.2f}", f"₹{total:.2f}"
+            ]
+        }
+
+        df = pd.DataFrame(receipt_data)
+        st.subheader("🧾 Booking Receipt")
+        st.table(df)
 
     except Exception as e:
         st.error(f"❌ Could not connect to database: {e}")
