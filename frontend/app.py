@@ -7,7 +7,7 @@ st.title("🚖 Cab Booking System")
 def get_connection():
     conn = pyodbc.connect(
         "DRIVER={ODBC Driver 17 for SQL Server};"
-        "SERVER=PRINCY\\MSSQL;"  # adjust your SQL Server instance
+        "SERVER=PRINCY\MSSQL;"  # adjust your SQL Server instance
         "DATABASE=CabBookingDB;"
         "UID=sa;"                # your SQL username
         "PWD=2002;"              # your SQL password
