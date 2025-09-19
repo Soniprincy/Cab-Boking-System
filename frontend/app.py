@@ -49,20 +49,6 @@ def save_booking(data):
         st.error(f"❌ Database insert error: {e}")
         return False
 
-# ---------- FETCH BOOKINGS ----------
-def fetch_bookings():
-    try:
-        with engine.begin() as conn:
-            result = conn.execute(text("SELECT * FROM Bookings ORDER BY created_at DESC"))
-            rows = result.fetchall()
-            if rows:
-                return pd.DataFrame(rows, columns=result.keys())
-            else:
-                return pd.DataFrame()
-    except Exception as e:
-        st.error(f"❌ Could not fetch bookings: {e}")
-        return pd.DataFrame()
-
 # ---------- STREAMLIT UI ----------
 st.title("🚖 Cab Booking System")
 
