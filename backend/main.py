@@ -5,14 +5,19 @@ from sqlalchemy import create_engine, text
 app = FastAPI()
 
 # DB connection
-server = "PRINCY\\MSSQL"
+server = "PRINCY%5CMSSQL"   # 👈 encoded backslash
 database = "CabBookingDB"
 username = "sa"
 password = "2002"
 
-connection_string = f"mssql+pyodbc://{username}:{password}@{server}/{database}?driver=ODBC+Driver+17+for+SQL+Server"
+connection_string = (
+    f"mssql+pyodbc://{username}:{password}@{server}/{database}"
+    "?driver=ODBC+Driver+17+for+SQL+Server"
+)
+
 engine = create_engine(connection_string)
 
+# Booking model
 class BookingRequest(BaseModel):
     firstname: str
     surname: str
