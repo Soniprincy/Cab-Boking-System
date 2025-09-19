@@ -4,7 +4,7 @@ import sqlite3
 st.title("🚖 Cab Booking System")
 
 # Database setup (SQLite)
-conn = sqlite3.connect("cab_bookings.db")
+conn = sqlite3.connect("CabBookingDB")
 c = conn.cursor()
 c.execute("""
 CREATE TABLE IF NOT EXISTS Bookings (
