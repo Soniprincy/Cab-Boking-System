@@ -1,6 +1,11 @@
 import streamlit as st
 from sqlalchemy import create_engine, text
 import pandas as pd
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
 
 # ---------- DB CONNECTION ----------
 engine = create_engine("sqlite:///cab_booking.db")
@@ -48,6 +53,59 @@ def save_booking(data):
     except Exception as e:
         st.error(f"❌ Database insert error: {e}")
         return False
+
+# ---------- PDF GENERATOR ----------
+def generate_invoice_pdf(booking_data, invoice_df):
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Title
+    elements.append(Paragraph("<b>Cab Booking Invoice</b>", styles['Title']))
+    elements.append(Spacer(1, 12))
+
+    # Customer Details
+    customer_info = f"""
+    <b>Customer:</b> {booking_data.get('firstname','')} {booking_data.get('surname','')}<br/>
+    <b>Address:</b> {booking_data.get('address','')}, {booking_data.get('postcode','')}<br/>
+    <b>Telephone:</b> {booking_data.get('telephone','')} | <b>Mobile:</b> {booking_data.get('mobile','')}<br/>
+    <b>Email:</b> {booking_data.get('email','')}<br/>
+    <b>Pickup:</b> {booking_data.get('pickup','')}<br/>
+    <b>Drop:</b> {booking_data.get('drop_location','')}<br/>
+    <b>Cab Type:</b> {booking_data.get('cab_type','')}<br/>
+    """
+    elements.append(Paragraph(customer_info, styles['Normal']))
+    elements.append(Spacer(1, 20))
+
+    # ✅ Format values as strings with ₹ symbol
+    invoice_df["Amount (Rs)"] = invoice_df["Amount (Rs)"].apply(lambda x: f"Rs {x:.2f}")
+
+    # Prepare table with fixed column widths
+    data = [invoice_df.columns.tolist()] + invoice_df.values.tolist()
+    table = Table(data, colWidths=[300, 100])  # force proper alignment
+
+    style = TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#4CAF50")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 11),
+        ('BOTTOMPADDING', (0,0), (-1,0), 12),
+        ('BACKGROUND', (0,1), (-1,-1), colors.beige),
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+    ])
+    table.setStyle(style)
+
+    # Add heading + table
+    elements.append(Paragraph("<b>Fare Breakdown</b>", styles['Heading2']))
+    elements.append(table)
+
+    # Build PDF
+    doc.build(elements)
+    pdf = buffer.getvalue()
+    buffer.close()
+    return pdf
 
 # ---------- STREAMLIT UI ----------
 st.title("🚖 Cab Booking System")
@@ -108,41 +166,22 @@ if st.button("Book Cab"):
         # Fare breakdown
         st.subheader("💰 Fare Breakdown")
         invoice_df = pd.DataFrame([
-            {"Item": "Base Fare", "Amount (₹)": round(base_charge)},
-            {"Item": f"Distance Fare ({distance} km × ₹{rate}/km)", "Amount (₹)": round(distance * rate)},
-            {"Item": "Insurance", "Amount (₹)": 10.0},
-            {"Item": "Subtotal", "Amount (₹)": round(subtotal)},
-            {"Item": "Tax (9%)", "Amount (₹)": round(tax)},
-            {"Item": "Total Fare", "Amount (₹)": round(total_cost)}
+            {"Item": "Base Fare", "Amount (Rs)": round(base_charge)},
+            {"Item": f"Distance Fare ({distance} km × Rs {rate}/km)", "Amount (Rs)": round(distance * rate)},
+            {"Item": "Insurance", "Amount (Rs)": 10.0},
+            {"Item": "Subtotal", "Amount (Rs)": round(subtotal)},
+            {"Item": "Tax (9%)", "Amount (Rs)": round(tax)},
+            {"Item": "Total Fare", "Amount (Rs)": round(total_cost)}
         ])
+        st.table(invoice_df)
 
-        # Show invoice inside a container with an ID
-        invoice_html = invoice_df.to_html(index=False)
-        st.markdown(f"""
-        <div id="invoice">
-            <h3>🚖 Cab Invoice</h3>
-            {invoice_html}
-        </div>
-        """, unsafe_allow_html=True)
+        # Generate invoice PDF
+        pdf_data = generate_invoice_pdf(booking_data, invoice_df)
 
-        # Print button with CSS to only print invoice section
-        print_button = """
-        <style>
-        @media print {
-            body * { visibility: hidden; }
-            #invoice, #invoice * { visibility: visible; }
-            #invoice { position: absolute; top: 0; left: 0; }
-        }
-        </style>
-        <button onclick="window.print()" 
-        style="padding:10px 20px;
-               background-color:#4CAF50;
-               color:white;
-               border:none;
-               border-radius:5px;
-               cursor:pointer;
-               font-size:16px;">
-            🖨️ Print Invoice
-        </button>
-        """
-        st.markdown(print_button, unsafe_allow_html=True)
+        # Download button
+        st.download_button(
+            label="📥 Download Invoice as PDF",
+            data=pdf_data,
+            file_name="cab_invoice.pdf",
+            mime="application/pdf"
+        )

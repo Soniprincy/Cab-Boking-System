@@ -6,3 +6,4 @@ pydantic
 sqlalchemy
 pyodbc
 pandas
+reportlab
