@@ -107,11 +107,42 @@ if st.button("Book Cab"):
 
         # Fare breakdown
         st.subheader("💰 Fare Breakdown")
-        st.table(pd.DataFrame([
+        invoice_df = pd.DataFrame([
             {"Item": "Base Fare", "Amount (₹)": round(base_charge)},
             {"Item": f"Distance Fare ({distance} km × ₹{rate}/km)", "Amount (₹)": round(distance * rate)},
             {"Item": "Insurance", "Amount (₹)": 10.0},
             {"Item": "Subtotal", "Amount (₹)": round(subtotal)},
             {"Item": "Tax (9%)", "Amount (₹)": round(tax)},
             {"Item": "Total Fare", "Amount (₹)": round(total_cost)}
-        ]))
+        ])
+
+        # Show invoice inside a container with an ID
+        invoice_html = invoice_df.to_html(index=False)
+        st.markdown(f"""
+        <div id="invoice">
+            <h3>🚖 Cab Invoice</h3>
+            {invoice_html}
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Print button with CSS to only print invoice section
+        print_button = """
+        <style>
+        @media print {
+            body * { visibility: hidden; }
+            #invoice, #invoice * { visibility: visible; }
+            #invoice { position: absolute; top: 0; left: 0; }
+        }
+        </style>
+        <button onclick="window.print()" 
+        style="padding:10px 20px;
+               background-color:#4CAF50;
+               color:white;
+               border:none;
+               border-radius:5px;
+               cursor:pointer;
+               font-size:16px;">
+            🖨️ Print Invoice
+        </button>
+        """
+        st.markdown(print_button, unsafe_allow_html=True)
